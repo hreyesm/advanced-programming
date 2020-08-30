@@ -43,9 +43,9 @@ void tree(char *basePath, int root) {
 }
 
 void histogram() {
-    char *path = (char *) malloc(sizeof(char) * 1000);
     printf("\nHistogram\n---------\n");
     printf("\nPath: ");
+    char *path = (char *) malloc(sizeof(char) * 1000);
     scanf("%s", path);
     printf("\nTree:\n\n");
     tree(path, 0);
@@ -53,8 +53,8 @@ void histogram() {
 }
 
 int main(int argc, char const *argv[]) {
-    int option;
     printf("\nMenu\n----\n\n0. Exit program\n1. Gang scheduling\n2. Histogram\n\nChoose an option: ");
+    int option;
     scanf("%d", &option);
     switch (option) {
         case 0:
