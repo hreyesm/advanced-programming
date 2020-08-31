@@ -1,3 +1,12 @@
+/*  Actividad 3: Histograma
+    Curso: Programación avanzada
+    Profesor: Vicente Cubells Nonell
+    Autores:
+        Daniela Vignau León (A01021698)
+        Héctor Alexis Reyes Manrique (A01339607)
+    Fecha: 3 de septiembre de 2020
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -10,31 +19,30 @@ typedef struct {
     off_t size;
 } entry;
 
-void traverse(char *basePath, int root) {
+void printEntry(entry *e) {
+    printf("\nFile: %s", e->file);
+    printf("\nSize: %lld bytes\n", e->size);
+}
+
+void traverse(entry **entries, entry **e, char *basePath, int size, int *count) {
     char *path = (char *) malloc(sizeof(char) * 100);
     struct dirent *dp;
     struct stat st;
     DIR *dir = opendir(basePath);
     if (!dir) {
+        (*entries + *count)->file = (char *) malloc(sizeof(char) * 100);
+        strcpy((*entries + *count)->file, basePath);
         stat(basePath, &st);
-        printf("File: %s\nSize: %lld bytes\n\n", basePath, st.st_size);
+        (*entries + *count)->size = st.st_size;
+        (*count)++;
         return;
     }
     while ((dp = readdir(dir)) != NULL) {
         if (strcmp(dp->d_name, ".") != 0 && strcmp(dp->d_name, "..") != 0) {
-            // Print Tree   
-            // for (int i = 0; i < root; i++) {
-            //     if (i % 2 == 0 || i == 0) {
-            //         printf("│");
-            //     } else {
-            //         printf("  ");
-            //     }
-            // }
-            // printf("├──%s\n", dp->d_name);
             strcpy(path, basePath);
             strcat(path, "/");
             strcat(path, dp->d_name);
-            traverse(path, root + 2);
+            traverse(entries, e, path, size, count);
         }
     }
     closedir(dir);
@@ -42,12 +50,19 @@ void traverse(char *basePath, int root) {
 }
 
 int main(int argc, char const *argv[]) {
-    printf("\nHistogram\n---------\n");
-    printf("\nPath: ");
+    int size = sizeof(entry);
+    int count = 0;
+    entry *entries = (entry *) malloc(size * 100);
+    entry *e = entries;
     char *path = (char *) malloc(sizeof(char) * 100);
+    printf("\nHistogram\n---------\n\nPath: ");
     scanf("%s", path);
-    printf("\nTree:\n\n");
-    traverse(path, 0);
+    traverse(&entries, &e, path, size, &count);
+    entry *temp = entries;
+    entry *last = entries + count;
+    for (; temp < last; temp++) {
+        printEntry(temp);
+    }
     free(path);
     return 0;
 }
