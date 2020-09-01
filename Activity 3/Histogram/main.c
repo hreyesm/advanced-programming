@@ -16,6 +16,7 @@
 #include <dirent.h>
 
 #define W 1024 // Window
+#define H 30 // Max stars in histogram - 1
 
 typedef struct {
     off_t size;
@@ -36,7 +37,7 @@ void printEntry(entry *e) {
 }
 
 void printUrn(urn *u) {
-    printf("%8d%8d%16d%12s", u->rangeStart, u->rangeEnd, u->nFiles, "");
+    printf("%10d%10d%10d%40s", u->rangeStart, u->rangeEnd, u->nFiles, u->histogram);
     printf("\n");
 }
 
@@ -46,7 +47,7 @@ void traverse(urn **urns, entry **entries, char *basePath, int *count, int *max)
     struct stat st;
     DIR *dir = opendir(basePath);
     if (!dir) {
-        // printf("\t%s\n", basePath);
+        printf("\t%s\n", basePath);
         stat(basePath, &st);
         (*entries + *count)->size = st.st_size;
         (*entries + *count)->rangeStart = ceil((*entries + *count)->size / W) * W;
@@ -81,7 +82,7 @@ void traverse(urn **urns, entry **entries, char *basePath, int *count, int *max)
 }
 
 int main(int argc, char const *argv[]) {
-    // Entry Generation
+    // Urns
     entry *entries = (entry *) malloc(sizeof(entry) * 1000000);
     urn *urns = (urn *) malloc(sizeof(urn) * 1000);
     char *path = (char *) malloc(sizeof(char) * 1000);
@@ -89,33 +90,29 @@ int main(int argc, char const *argv[]) {
     int max = 1;
     printf("\nHistogram\n---------\n\nPath: ");
     scanf("%s", path);
-
-    // printf("\nFile paths:\n\n");
-
     traverse(&urns, &entries, path, &count, &max);
 
-    int histogram = 20;
-
+    // Histograms
     urn *u = urns - 1;
+    int nStars = 0;
     for (; u->rangeEnd != 0; u++) {
-        u->histogram = (char *) malloc(sizeof(char) * u->nFiles * histogram / max);
-        char *c = u->histogram;
-        for (; c < u->histogram + 20; c++) {
-            c = "*";
+        nStars = u->nFiles * H / max;
+        u->histogram = (char *) malloc(sizeof(char) * nStars);
+        strcpy(u->histogram, "*");
+        char *c = u->histogram + 1;
+        for (; c < u->histogram + nStars; c++) {
+            strcpy(c, "*");
         }
-        printf("%s", u->histogram);
     }
-
-    printf("\nTotal files: %d\n", count);
-    printf("Max: %d\n", max);
     
     // Print Urns
-    printf("\n%8s%8s%16s%32s\n", "", "Range", "Files", "Histogram");
-    printf("%8s%8s%16s%32s\n", "", "-----", "-----", "---------");
+    printf("\n%10s%10s%10s%40s\n", "", "Range", "Files", "Histogram");
+    printf("%10s%10s%10s%40s\n", "", "-----", "-----", "---------");
     u = urns - 1;
     for (; u->rangeEnd != 0; u++) {
         printUrn(u);
     }
+    printf("\nTotal: %d\n", count);
 
     free(entries);
     free(urns);
