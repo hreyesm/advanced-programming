@@ -48,6 +48,7 @@ void traverse(urn **urns, char *basePath, int window, int *count, int *max) {
         u = *urns - 1;
         for (; u < *urns + *count; u++) {
             if (u->range == NULL) {
+                u->files = 1;
                 u->rangeEnd = rangeEnd;
                 u->range = (char *) malloc(sizeof(char) * 40);
                 s1 = (char *) malloc(sizeof(char) * 20);
@@ -55,7 +56,6 @@ void traverse(urn **urns, char *basePath, int window, int *count, int *max) {
                 sprintf(s1, "%d-", rangeStart);
                 sprintf(s2, "%d", rangeEnd);
                 strcpy(u->range, strcat(s1, s2));
-                u->files = 1;
                 free(s1);
                 free(s2);
                 break;
@@ -66,6 +66,7 @@ void traverse(urn **urns, char *basePath, int window, int *count, int *max) {
             }
         }
         (*count)++;
+        free(path);
         return;
     }
     while ((dp = readdir(dir)) != NULL) {
@@ -81,7 +82,7 @@ void traverse(urn **urns, char *basePath, int window, int *count, int *max) {
 }
 
 int main(int argc, char const *argv[]) {
-    urn *urns = (urn *) malloc(sizeof(urn) * 1000);
+    urn *urns = (urn *) malloc(sizeof(urn) * 2000);
     char *path = (char *) malloc(sizeof(char) * 1000);
     int window;
     int count = 0, max = 1;
