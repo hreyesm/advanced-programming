@@ -82,13 +82,13 @@ void traverse(urn **urns, char *basePath, int window, int *count, int *max) {
 }
 
 int main(int argc, char const *argv[]) {
-    urn *urns = (urn *) malloc(sizeof(urn) * 2000);
+    urn *urns = (urn *) malloc(sizeof(urn) * 1000);
     char *path = (char *) malloc(sizeof(char) * 1000);
     int window;
     int count = 0, max = 1;
     printf("\nHistogram\n---------\n\nPath: ");
     scanf("%s", path);
-    printf("Window (e.g. 10000): ");
+    printf("Window in bytes (e.g. 10000): ");
     scanf("%d", &window);
     if (window > 0) {
         traverse(&urns, path, window, &count, &max);
