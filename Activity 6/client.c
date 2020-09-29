@@ -1,3 +1,15 @@
+/*
+    Preguntas
+    1. ¿Cómo vamos a dar a conocer el PID del semáforo para enviar señales?
+        - Enviada por los sockets, se almacena en el semáforo
+        - Topología estrella inicialmente, y después es token ring
+    2. Al leer la señal Ctrl + C en el servidor, se hace un broadcast automático en todos los hijos?
+    3. Manejador...
+        - ¿Cómo recibimos las señales del server en los clientes? Manejados como un string? 
+    4. Todas las cosas enviadas por los sockets, son strings...? 
+*/
+
+
 #include <stdio.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -5,53 +17,97 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <signal.h>
+#include <getopt.h>
 
 #define TCP_PORT 8000
 
+int nextPid;
+
 void handler(int signal) {
-    printf("Recibí la señal Ctrl + Z\n");
+    if (signal == SIGUSR1) {
+        printf("\n\nRecibí la señal de otro semáforo\n\n");
+        printf("Estado: Verde\n");
+        sleep(5);
+        kill(nextPid, SIGUSR1);
+        printf("Estado: Rojo\n");
+        // el semáforo actual se pone en verde
+        // escribir en socket estado actual 
+        // se queda en verde por 30 segundos
+        // se pone en rojo
+        // kill(pid-derecha, SIGUSR1);  
+    }
 }
 
-int main(int argc, const char * argv[]) {
-    
+int main(int argc, char * argv[]) {
     struct sockaddr_in direccion;
     char buffer[1000];
-    
     int cliente;
+    ssize_t leidos, escritos;
+    int arg;
+    char *value;
+    int firstFlag;
+
     
-    int leidos, escritos;
-    
-    if (argc != 2) {
-        printf("Error. Use: %s A.B.C.D \n", argv[0]);
-        exit(-1);
+    // if (argc != 2) {
+    //     printf("Use: %s IP_Servidor \n", argv[0]);
+    //     exit(-1);
+    // }
+
+    // Validate argument
+    while ((arg = getopt(argc, argv, "f")) != -1)
+    switch (arg) {
+        case 'f':
+            firstFlag = 1;
+            break;
+        default:
+            abort();
     }
     
-    //Crear el socket
+    printf("My PID is %d\nEnter the PID of the semaphore on the right: ", getpid());
+    scanf("%d", &nextPid);
+    printf("Sending signals to sempahore with PID %d\n", nextPid);
+    
+    // Señales
+    struct sigaction sa, sa_old;
+    sa.sa_handler = handler;   // Estableciendo un gestor
+
+    sigaction(SIGUSR1, &sa, 0);
+    // sigaction(SIGUSR1, 0, &sa_old);
+    
+    if (firstFlag == 1) {
+        printf("Sending the first signal\n");
+        kill(nextPid, SIGUSR1);
+        // firstFlag = 0;
+    }
+
+    // Crear el socket
     cliente = socket(PF_INET, SOCK_STREAM, 0);
     
     // Establecer conexión
+    inet_aton(argv[1], &direccion.sin_addr);
     direccion.sin_port = htons(TCP_PORT);
     direccion.sin_family = AF_INET;
-    inet_aton(argv[1], &direccion.sin_addr);
+     
+    escritos = connect(cliente, (struct sockaddr *) &direccion, sizeof(direccion));
+
     
-    int estado = connect(cliente, (struct sockaddr *) &direccion, sizeof(direccion));
-    
-    // Comunicación
-    
-    if (estado == 0) {
+    if (escritos == 0)  {
         printf("Conectado a %s:%d \n",
                inet_ntoa(direccion.sin_addr),
                ntohs(direccion.sin_port));
         
-        // Leer de teclado y escribir en socket
-        while (leidos = read(fileno(stdin), &buffer, sizeof(buffer))) {
+        // Escribir datos en el socket
+        while ((leidos = read(fileno(stdin), &buffer, sizeof(buffer)))) {
             write(cliente, &buffer, leidos);
-            leidos = read(cliente, &buffer, sizeof(buffer));
+            
+            /* Lee del buffer y escribe en pantalla */
+            leidos = read(cliente, &buffer, sizeof(buffer) );
             write(fileno(stdout), &buffer, leidos);
         }
     }
     
-    // Cerrar el socket
+
+    // Cerrar sockets
     close(cliente);
     
     return 0;
