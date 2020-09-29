@@ -25,21 +25,19 @@ int nextPid;
 
 void handler(int signal) {
     if (signal == SIGUSR1) {
-        
-        printf("\n\nRecibí la señal de otro semáforo\n");
         printf("Estado: Verde\n");
-        sleep(10);
+        sleep(5);
         kill(nextPid, SIGUSR1);
         printf("Estado: Rojo\n");
-        // el semáforo actual se pone en verde
-        // escribir en socket estado actual 
-        // se queda en verde por 30 segundos
-        // se pone en rojo
-        // kill(pid-derecha, SIGUSR1);  
     }
 }
 
 int main(int argc, char * argv[]) {
+    // Señales
+    struct sigaction sa, sa_old;
+    sa.sa_handler = handler;   // Estableciendo un gestor        
+    sigaction(SIGUSR1, &sa, 0);
+
     struct sockaddr_in direccion;
     char buffer[1000];
     int cliente;
@@ -48,7 +46,6 @@ int main(int argc, char * argv[]) {
     char *value;
     int firstFlag;
 
-    
     // if (argc != 2) {
     //     printf("Use: %s IP_Servidor \n", argv[0]);
     //     exit(-1);
@@ -63,40 +60,32 @@ int main(int argc, char * argv[]) {
         default:
             abort();
     }
-    
-    
-    // Crear el socket
+
+    // Socket
     cliente = socket(PF_INET, SOCK_STREAM, 0);
-        
-    // Establecer conexión
+
     if (firstFlag == 1) {
         inet_aton(argv[2], &direccion.sin_addr);
     } else {
         inet_aton(argv[1], &direccion.sin_addr);
     }
+
     direccion.sin_port = htons(TCP_PORT);
     direccion.sin_family = AF_INET;
-
     escritos = connect(cliente, (struct sockaddr *) &direccion, sizeof(direccion));
-    
+
+    // Communication
     if (escritos == 0)  {
         printf("Conectado a %s:%d \n", inet_ntoa(direccion.sin_addr), ntohs(direccion.sin_port));
-        
         printf("My PID is %d\nEnter the PID of the semaphore on the right: ", getpid());
         scanf("%d", &nextPid);
         printf("Sending signals to sempahore with PID %d\n", nextPid);
-        
-        // Señales
-        struct sigaction sa, sa_old;
-        sa.sa_handler = handler;   // Estableciendo un gestor        
-        
         if (firstFlag == 1) {
             printf("Sending the first signal\n");
             kill(nextPid, SIGUSR1);
             firstFlag = 0;
         }
 
-        sigaction(SIGUSR1, &sa, 0);
         // sigaction(SIGUSR1, 0, &sa_old);
 
         // Escribir datos en el socket
@@ -109,7 +98,6 @@ int main(int argc, char * argv[]) {
         }
     }
     
-
     // Cerrar sockets
     close(cliente);
     
