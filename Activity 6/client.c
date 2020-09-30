@@ -13,14 +13,21 @@ int nextPid;
 char currState = 'R';
 char lastState;
 
+void alarmHandler(int signal) {
+    kill(nextPid, SIGUSR1);
+    currState = 'R';
+    printf("State: %c\n", currState);
+}
+
 void handler(int signal) {
+    struct sigaction sa;
+    sa.sa_handler = alarmHandler;       
+    // printf("State: %c\n", currState);
     if (signal == SIGUSR1) {
         currState = 'G';
-        printf("State: %c\n", currState);
-        sleep(5);
-        kill(nextPid, SIGUSR1);
-        currState = 'R';
-        printf("State: %c\n", currState);
+        printf("\nState: %c\n", currState);
+        alarm(5);
+        sigaction(SIGALRM, &sa, 0);
     }
 }
 
@@ -78,9 +85,20 @@ int main(int argc, char * argv[]) {
         // Escribir datos en el socket
         while (leidos = read(cliente, &buffer, sizeof(buffer))) {
             /* Lee del buffer y escribe en pantalla */
-            printf("\nRecibí la señal %s\n", buffer);
-            // lastState = currState;
-            // currState = buffer;
+            if(leidos == 1) {
+                printf("Recibí la señal %s\n", buffer);
+                lastState = currState;
+                currState = *buffer;
+                printf("STATE - %c\n", currState);
+                alarm(5);
+                // if(lastState == 'G') {
+                //     raise(SIGUSR1);
+                //     printf("Restarting...\n");
+                //     currState = lastState;
+                //     printf("State: %c\n", currState);
+                // }
+                // printf("Ya no estoy en el handler!!");
+            }
         }
     }
     
@@ -89,3 +107,10 @@ int main(int argc, char * argv[]) {
     
     return 0;
 }
+/*
+    - Los semáforos tienen su funcionamiento normal con alarm()
+    - En cuanto se recibe un ctrl C, ambos semáforos lo reconocen
+    - De la linea 93 a la 96, quería hacer que al volver a presionar Ctrl C en el servidor,
+        que el que tiene como lastState Green, que se mandara una señal a si mismo para que volviera empezar
+    - Hay que ver la manera de guardar el buffer y que si es el mismo, entonces se levanta la señal
+*/
