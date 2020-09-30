@@ -8,20 +8,29 @@
 
 #define TCP_PORT 8000
 
+char interruption;
+int fd;
+
 void handler(int signal) {
     if (signal == SIGINT) {
         printf("\nRecibí la señal Ctrl + C\n");
-
+        interruption = 'Y';
     } else {
         printf("\nRecibí la señal Ctrl + Z\n");
+        interruption = 'R';
     }
-    // Mandar señal a todos los sockets
+    write(fd, &interruption, sizeof(char));
 }
 
-int main(int argc, const char * argv[]) 
-{
+int main(int argc, const char * argv[]) {
+    // Señales
+    struct sigaction sa, sa_old;
+    sa.sa_handler = handler;   // Estableciendo un gestor
+    sigaction(SIGTSTP, &sa, 0);
+    sigaction(SIGINT, &sa, 0);
+
     struct sockaddr_in direccion;
-    char buffer[1000];
+    char buffer[100];
     
     int servidor, cliente;
     
@@ -49,25 +58,12 @@ int main(int argc, const char * argv[])
     
     escritos = sizeof(direccion);
     
-    // Señales
-    struct sigaction sa, sa_old;
-    sa.sa_handler = handler;   // Estableciendo un gestor
-    sa.sa_flags = SA_RESTART;
-
-    // Espera la señal    
-    sigaction(SIGTSTP, &sa, 0);
-    sigaction(SIGTSTP, 0, &sa_old);
-    // sigaction(SIGINT, &sa, 0);
-    // sigaction(SIGINT, 0, &sa_old);
 
     // Aceptar conexiones
-    while (continuar)
-    {
+    while (continuar) {
         cliente = accept(servidor, (struct sockaddr *) &direccion, &escritos);
         
-        printf("Aceptando conexiones en %s:%d \n",
-               inet_ntoa(direccion.sin_addr),
-               ntohs(direccion.sin_port));
+        printf("Accepting connections in %s:%d \n", inet_ntoa(direccion.sin_addr), ntohs(direccion.sin_port));
         
         pid = fork();
         
@@ -80,14 +76,10 @@ int main(int argc, const char * argv[])
         close(servidor);
         
         if (cliente >= 0) {
-            
+            fd = cliente;
             // Leer datos del socket
             while (leidos = read(cliente, &buffer, sizeof(buffer))) {
                 write(fileno(stdout), &buffer, leidos);
-                
-                /* Leer de teclado y escribir en el socket */
-                leidos = read(fileno(stdin), &buffer, sizeof(buffer));
-                write(cliente, &buffer, leidos);
             }
         }
         
