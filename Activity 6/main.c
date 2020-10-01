@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <signal.h>
+#include <string.h>
 
 #define TCP_PORT 8000
 
@@ -30,7 +31,7 @@ int main(int argc, const char * argv[]) {
     sigaction(SIGINT, &sa, 0);
 
     struct sockaddr_in direccion;
-    char buffer[100];
+    char buffer;
     
     int servidor, cliente;
     

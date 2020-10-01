@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include <signal.h>
 #include <getopt.h>
+#include <string.h>
 
 #define TCP_PORT 8000
 
@@ -22,7 +23,6 @@ void alarmHandler(int signal) {
 void handler(int signal) {
     struct sigaction sa;
     sa.sa_handler = alarmHandler;       
-    // printf("State: %c\n", currState);
     if (signal == SIGUSR1) {
         currState = 'G';
         printf("\nState: %c\n", currState);
@@ -38,18 +38,20 @@ int main(int argc, char * argv[]) {
     sigaction(SIGUSR1, &sa, 0);
 
     struct sockaddr_in address;
-    char buffer[100];
+    char buffer;
     int cliente;
     ssize_t leidos, escritos;
     int arg;
     char *value;
-    int firstFlag;
+    int firstSignal;
+    char receivedSignal = 'X';
+
 
     // Validate argument
     while ((arg = getopt(argc, argv, "f")) != -1)
     switch (arg) {
         case 'f':
-            firstFlag = 1;
+            firstSignal = 1;
             break;
         default:
             abort();
@@ -58,7 +60,7 @@ int main(int argc, char * argv[]) {
     // Socket
     cliente = socket(PF_INET, SOCK_STREAM, 0);
 
-    if (firstFlag == 1) {
+    if (firstSignal == 1) {
         inet_aton(argv[2], &address.sin_addr);
     } else {
         inet_aton(argv[1], &address.sin_addr);
@@ -76,28 +78,32 @@ int main(int argc, char * argv[]) {
         scanf("%d", &nextPid);
         printf("Sending signals to sempahore with PID %d\n", nextPid);
         
-        if (firstFlag == 1) {
+        if (firstSignal == 1) {
             printf("Sending the first signal\n");
             kill(nextPid, SIGUSR1);
-            firstFlag = 0;
+            firstSignal = 0;
         }
 
         // Escribir datos en el socket
         while (leidos = read(cliente, &buffer, sizeof(buffer))) {
-            /* Lee del buffer y escribe en pantalla */
-            if(leidos == 1) {
-                printf("Recibí la señal %s\n", buffer);
-                lastState = currState;
-                currState = *buffer;
-                printf("STATE - %c\n", currState);
-                alarm(5);
-                // if(lastState == 'G') {
-                //     raise(SIGUSR1);
-                //     printf("Restarting...\n");
-                //     currState = lastState;
-                //     printf("State: %c\n", currState);
-                // }
-                // printf("Ya no estoy en el handler!!");
+            if (leidos == 1) { 
+                printf("Leidos: %d\n", leidos);
+                if (receivedSignal != buffer) { // Stop semaphores, a new signal has been received
+                    printf("Buffer: %c\n", buffer);
+                    receivedSignal = buffer;
+                    printf("Recibí la señal %c\n", receivedSignal);
+                    lastState = currState;
+                    currState = receivedSignal;
+                    printf("State: %c\n", currState);
+                    alarm(0);
+                } else { // The same signal has been received, restart semaphores
+                    currState = lastState;
+                    receivedSignal = 'X';
+                    if (currState == 'G') {
+                        printf("Restarting...\n");
+                        raise(SIGUSR1);
+                    }
+                }
             }
         }
     }
@@ -107,10 +113,3 @@ int main(int argc, char * argv[]) {
     
     return 0;
 }
-/*
-    - Los semáforos tienen su funcionamiento normal con alarm()
-    - En cuanto se recibe un ctrl C, ambos semáforos lo reconocen
-    - De la linea 93 a la 96, quería hacer que al volver a presionar Ctrl C en el servidor,
-        que el que tiene como lastState Green, que se mandara una señal a si mismo para que volviera empezar
-    - Hay que ver la manera de guardar el buffer y que si es el mismo, entonces se levanta la señal
-*/
