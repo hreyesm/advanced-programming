@@ -30,7 +30,7 @@ void handler(int signal) {
         currState = 'G';
         printf("\nState: %c\n", currState);
         write(fd, &currState, sizeof(char));
-        alarm(15);
+        alarm(8);
         sigaction(SIGALRM, &sa, 0);
     }
 }
@@ -48,6 +48,7 @@ int main(int argc, char * argv[]) {
     char *value;
     int isFirst;
     char receivedSignal = '\0';
+    int flag = 0;
 
     while ((arg = getopt(argc, argv, "f")) != -1)
     switch (arg) {
@@ -86,14 +87,19 @@ int main(int argc, char * argv[]) {
             if (receivedData == 1) { 
                 if (receivedSignal != buffer) {
                     receivedSignal = buffer;
-                    lastState = currState;
-                    currState = receivedSignal;
+                    if(flag == 0) {
+                        // We only need to save once the last state of the semaphore
+                        lastState = currState;
+                        currState = receivedSignal;
+                        flag = 1;
+                    }
                     printf("State: %c\n", currState);
                     write(fd, &currState, sizeof(char));
                     alarm(0);
                 } else {
                     currState = lastState;
                     if (currState == 'G') {
+                        flag = 1;
                         printf("Restarting semaphores...\n");
                         raise(SIGUSR1);
                     }
