@@ -26,37 +26,36 @@ void alarmHandler(int signal) {
 void handler(int signal) {
     struct sigaction sa;
     sa.sa_handler = alarmHandler;       
-    if (signal == SIGUSR1) {
-        currState = 'G';
-        printf("\nState: %c\n", currState);
-        write(fd, &currState, sizeof(char));
-        alarm(8);
-        sigaction(SIGALRM, &sa, 0);
-    }
+    currState = 'G';
+    printf("State: %c\n", currState);
+    write(fd, &currState, sizeof(char));
+    alarm(8);
+    sigaction(SIGALRM, &sa, 0);
 }
 
-int main(int argc, char * argv[]) {
+int main(int argc, char * argv[]) {    
     struct sigaction sa;
-    sa.sa_handler = handler;       
+    sa.sa_handler = handler;
     sigaction(SIGUSR1, &sa, 0);
+    // sigset_t blockMask; 
+    // sigfillset(&blockMask);
+    // sigdelset(&blockMask, SIGUSR1);
+    // sigdelset(&blockMask, SIGALRM);
+    // sa.sa_mask = blockMask;
 
     struct sockaddr_in address;
-    char buffer;
-    int semaphore;
+    char buffer, receivedSignal = '\0', *value;
+    int arg, flag = 0, isFirst, semaphore;
     ssize_t receivedData, sentData;
-    int arg;
-    char *value;
-    int isFirst;
-    char receivedSignal = '\0';
-    int flag = 0;
 
-    while ((arg = getopt(argc, argv, "f")) != -1)
-    switch (arg) {
-        case 'f':
-            isFirst = 1;
-            break;
-        default:
-            abort();
+    while ((arg = getopt(argc, argv, "f")) != -1) {
+        switch (arg) {
+            case 'f':
+                isFirst = 1;
+                break;
+            default:
+                abort();
+        }
     }
 
     semaphore = socket(PF_INET, SOCK_STREAM, 0);
@@ -83,24 +82,24 @@ int main(int argc, char * argv[]) {
             isFirst = 0;
         }
 
-        while (receivedData = read(semaphore, &buffer, sizeof(buffer))) {
+        while ((receivedData = read(semaphore, &buffer, sizeof(buffer)))) {
             if (receivedData == 1) { 
                 if (receivedSignal != buffer) {
                     receivedSignal = buffer;
-                    if(flag == 0) {
-                        // We only need to save once the last state of the semaphore
+                    if (flag == 0) {
                         lastState = currState;
-                        currState = receivedSignal;
                         flag = 1;
                     }
+                    currState = receivedSignal;
                     printf("State: %c\n", currState);
                     write(fd, &currState, sizeof(char));
                     alarm(0);
                 } else {
+                    receivedSignal = '\0';
                     currState = lastState;
+                    flag = 0;
                     if (currState == 'G') {
-                        flag = 1;
-                        printf("Restarting semaphores...\n");
+                        printf("\nRestarting semaphores...\n\n");
                         raise(SIGUSR1);
                     }
                 }
