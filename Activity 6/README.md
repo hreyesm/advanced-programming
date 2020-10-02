@@ -9,7 +9,7 @@ Compilar ambos archivos en el repositorio de la siguiente manera:
     gcc main.c -o console
     gcc semaphore.c -o semaphore
 ```
-### 3. Ejecutar los programas
+### 3. Ejecutar programas
 <strong>Ejecutar la consola</strong><br>
 El servidor debe de ser el primero en ejecutarse ya que es necesario que el socket esté prendido, esperando a que los semáforos se conecten.
 ```c 
