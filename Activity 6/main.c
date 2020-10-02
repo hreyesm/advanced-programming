@@ -1,3 +1,12 @@
+/*  Actividad 6: Sockets y señales
+    Curso: Programación avanzada
+    Profesor: Vicente Cubells Nonell
+    Autores:
+        Daniela Vignau León (A01021698)
+        Héctor Alexis Reyes Manrique (A01339607)
+    Fecha: 2 de octubre de 2020
+*/
+
 #include <stdio.h>
 #include <sys/socket.h>
 #include <sys/wait.h>
@@ -28,11 +37,6 @@ int main(int argc, const char * argv[]) {
     sa.sa_handler = handler;
     sigaction(SIGTSTP, &sa, 0);
     sigaction(SIGINT, &sa, 0);
-    // sigset_t blockMask; 
-    // sigfillset(&blockMask);
-    // sigdelset(&blockMask, SIGINT);
-    // sigdelset(&blockMask, SIGTSTP);
-    // sa.sa_mask = blockMask;
 
     struct sockaddr_in address;
     char buffer;
