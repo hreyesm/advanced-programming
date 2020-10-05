@@ -49,14 +49,13 @@ int main(int argc, char *argv[]) {
     sigset_t signals;
     sigfillset(&signals);
     sigdelset(&signals, SIGALRM);
-    sigdelset(&signals, SIGINT);
     sigprocmask(SIG_BLOCK, &signals, NULL);
     
     struct sigaction sa;
     sa.sa_handler = handler;
     sigaction(SIGALRM, &sa, 0);
       
-    int argument, index, n, t;
+    int argument, n, t;
     char *input = NULL;
     char *dirPath = "./datos";
     DIR *dir = opendir(dirPath);
@@ -84,16 +83,27 @@ int main(int argc, char *argv[]) {
     manageDir(dirPath, dir, nextFile);
 
     char newFile[10];
+
     for (int i = 0; i < n; ++i) {
         FILE *fp;
+        sigset_t waitingSignals;
         sprintf(newFile, "%s/a%d", dirPath, i);
         fp = fopen(newFile, "w");
         alarm(t);
-        
+
         while (record == 1) {
             fprintf(fp, "x");
+            sleep(1);
         }
 
+        sigpending(&waitingSignals);
+        if (sigismember(&waitingSignals, SIGTSTP)) {
+            fprintf(fp, "\nSIGTSTP");
+        } 
+        if (sigismember(&waitingSignals, SIGINT)) {
+            fprintf(fp, "\nSIGINT");
+        }
+        
         fclose(fp);
         memset(newFile, 0, 10);
         record = 1;
