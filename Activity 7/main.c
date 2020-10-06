@@ -10,6 +10,11 @@
 
 int record = 1;
 
+typedef struct {
+    int code;
+    char name[10];
+} signalInfo;
+
 void handler(int signal) {
     record = 0;
     printf("Timer finished\n");
@@ -44,23 +49,53 @@ void printDir(char *dirPath, DIR *dir, struct dirent *nextFile) {
         }
     }
 }
- 
+
 int main(int argc, char *argv[]) {
     sigset_t signals;
     sigfillset(&signals);
     sigdelset(&signals, SIGALRM);
     sigprocmask(SIG_BLOCK, &signals, NULL);
-    
-    struct sigaction sa;
+
+    struct sigaction sa, saOld;
     sa.sa_handler = handler;
     sigaction(SIGALRM, &sa, 0);
       
     int argument, n, t;
-    char *input = NULL;
-    char *dirPath = "./datos";
+    char *dirPath = "./datos", *input = NULL;
     DIR *dir = opendir(dirPath);
     struct dirent *nextFile;
-    
+
+    signalInfo signalList[] = {
+        {SIGHUP, "SIGHUP"},
+        {SIGINT, "SIGINT"},
+        {SIGQUIT, "SIGQUIT"},
+        {SIGILL, "SSIGILL"},
+        {SIGTRAP, "SIGTRAP"},
+        {SIGABRT, "SIGABRT"},
+        {SIGBUS, "SIGBUS"},
+        {SIGFPE, "SIGFPE"},
+        {SIGUSR1, "SIGUSR1"},
+        {SIGSEGV, "SIGSEGV"},
+        {SIGUSR2, "SIGUSR2"},
+        {SIGPIPE, "SIGPIPE"},
+        {SIGTERM, "SIGTERM"},
+        {SIGSTKFLT, "SIGTKFLT"},
+        {SIGCHLD, "SIGCHLD"},
+        {SIGCONT, "SIGCONT"},
+        {SIGTSTP, "SIGTSTP"},
+        {SIGTTIN, "SIGTTIN"},
+        {SIGTTOU, "SIGTTOU"},
+        {SIGURG, "SIGURG"},
+        {SIGXCPU, "SIGXCPU"},
+        {SIGXFSZ, "SIGXFSZ"},
+        {SIGVTALRM, "SIGVTALRM"},
+        {SIGPROF, "SIGPROF"},
+        {SIGWINCH, "SIGWINCH"},
+        {SIGPOLL, "SIGPOLL"},
+        {SIGPWR, "SIGPWR"},
+        {SIGSYS, "SIGSYS"},
+    };
+
     while ((argument = getopt (argc, argv, "n:t:")) != -1) {
         switch(argument) {
             case 'n':
@@ -84,7 +119,7 @@ int main(int argc, char *argv[]) {
 
     char newFile[10];
 
-    for (int i = 0; i < n; ++i) {
+    for (int i = 0; i < n; i++) {
         FILE *fp;
         sigset_t waitingSignals;
         sprintf(newFile, "%s/a%d", dirPath, i);
@@ -93,15 +128,13 @@ int main(int argc, char *argv[]) {
 
         while (record == 1) {
             fprintf(fp, "x");
-            sleep(1);
         }
 
         sigpending(&waitingSignals);
-        if (sigismember(&waitingSignals, SIGTSTP)) {
-            fprintf(fp, "\nSIGTSTP");
-        } 
-        if (sigismember(&waitingSignals, SIGINT)) {
-            fprintf(fp, "\nSIGINT");
+        for (int j = 0; j < sizeof(signalList) / sizeof(signalList[0]); j++) {
+            if (sigismember(&waitingSignals, signalList[j].code)) {
+                fprintf(fp, signalList[j].name);
+            } 
         }
         
         fclose(fp);
@@ -111,6 +144,9 @@ int main(int argc, char *argv[]) {
     
     dir = opendir(dirPath);
     printDir(dirPath, dir, nextFile);
-    
+
+    sigaction(SIGALRM, 0, &saOld);
+    sigprocmask(SIG_UNBLOCK, &signals, NULL);
+
     return 0;
 }
