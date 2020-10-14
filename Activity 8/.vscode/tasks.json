@@ -18,6 +18,25 @@
 				"$gcc"
 			],
 			"group": "build"
+		},
+		{
+			"type": "shell",
+			"label": "C/C++: gcc build active file (pthread)",
+			"command": "/usr/bin/gcc",
+			"args": [
+				"-pthread",
+				"-g",
+				"${file}",
+				"-o",
+				"${fileDirname}/${fileBasenameNoExtension}"
+			],
+			"options": {
+				"cwd": "${workspaceFolder}"
+			},
+			"problemMatcher": [
+				"$gcc"
+			],
+			"group": "build"
 		}
 	]
 }
