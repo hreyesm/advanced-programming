@@ -1,31 +1,44 @@
+/*  Actividad 8: Concurrencia
+    Curso: Programación avanzada
+    Profesor: Vicente Cubells Nonell
+    Autores:
+        Daniela Vignau León (A01021698)
+        Héctor Alexis Reyes Manrique (A01339607)
+    Fecha: 16 de octubre de 2020
+*/
+
 #include <stdio.h>
 #include <pthread.h>
 #include <time.h>
 #include <stdlib.h>
 #include <unistd.h>
 
-#define BUFF_SIZE 5
+#define BUFF_SIZE 10
 
-#define N 6
-#define G_CLIENTS 5
-#define B_CLIENTS 1
+#define N 150
+#define GENERAL_CLIENTS 100
+#define BUSINESS_CLIENTS 50
 
-#define G 0
-#define B 1
+#define GENERAL 0
+#define BUSINESS 1
 
-#define PRODUCTORES 1
-#define CONSUMIDORES 8
+#define ATMS 8
 
-int gQueue[BUFF_SIZE], bQueue[BUFF_SIZE];
+int generalQueue[BUFF_SIZE], businessQueue[BUFF_SIZE];
 int gIn = 0, gOut = 0;
 int bIn = 0, bOut = 0;
 int gTotal = 0, bTotal = 0;
 
-int producidos = 0, consumidos_g = 0, consumidos_b = 0;
+int gClientsServed = 0, bClientsServed = 0;
 
-int lowerGClient = 3, upperGClient = 3;
-int lowerBClient = 4, upperBClient = 4;
-int lowerAtm = 5, upperAtm = 6;
+int gClientLower = 5, gClientUpper = 22;
+int bClientLower = 9, bClientUpper = 34;
+int atmLower = 3, atmUpper = 5;
+
+typedef struct {
+    int id;
+    int type;
+} client;
 
 pthread_mutex_t mutex_b = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutex_g = PTHREAD_MUTEX_INITIALIZER;
@@ -33,187 +46,170 @@ pthread_cond_t consume_b = PTHREAD_COND_INITIALIZER;
 pthread_cond_t consume_g = PTHREAD_COND_INITIALIZER;
 pthread_cond_t produce_t = PTHREAD_COND_INITIALIZER;
 
-void * productor(void *);
-void * consumidor(void *);
-
-double operation(int lower, int upper) {
+int operation(int lower, int upper) {
     time_t start = time(NULL);
     sleep((rand() % (upper - lower + 1)) + lower);
     time_t end = time(NULL);
-    return (double)(end - start);
+    return (int) (end - start);
 }
 
-typedef struct {
-    int id;
-    int type;
-} client;
-
-int main(int argc, const char * argv[]) {    
-    srand((int) time(NULL));
-    int indice = 0;
-    int nhilos = PRODUCTORES + CONSUMIDORES;
-    pthread_t * obreros = (pthread_t *) malloc (sizeof(pthread_t) * nhilos);
-    pthread_t * aux = obreros;
-
-    printf("(I) Creando el productor %d\n", ++indice);
-    pthread_create(aux, NULL, productor, (void *) indice);
-
-    aux += 1;
-    indice = 0;
-
-    for (; aux < (obreros+nhilos); ++aux) {
-        printf("(I) Creando el consumidor %d\n", ++indice);
-        pthread_create(aux, NULL, consumidor, (void *) indice);
-    }
-
-    for (aux = obreros; aux < (obreros+nhilos); ++aux) {
-        pthread_join(*aux, NULL);
-    }
-
-    free(obreros);
-    printf("\nBANK CLOSED\n");
-    return 0;
-}
-
-void *productor(void *arg) {
-    int id = (intptr_t) arg;
-    int createdGClients = 0;
-    int createdBClients = 0;
-    int clientId = 0;
-    int type = 0;
-    double totalTime;
-    printf("(P) Inicia productor %d\n", id);
-
-    while (createdGClients + createdBClients < N) {
-        printf("Clientes creados %d  B = %d   G = %d \t bTotal = %d   gTotal = %d\n", createdGClients + createdBClients, createdBClients, createdGClients, bTotal, gTotal);
+void *agent(void *arg) {
+    int gClientsCreated = 0, bClientsCreated = 0, clientId = 0, type = 0, totalTime;
+    while (gClientsCreated + bClientsCreated < N) {
         client c;
         type = rand() % 2;
         c.type = type;
-        if (c.type == G && createdGClients < G_CLIENTS) { // General Queue
+        if (c.type == GENERAL && gClientsCreated < GENERAL_CLIENTS) {
                 pthread_mutex_lock(&mutex_g);
                 c.id = ++clientId;
-                if (gTotal < BUFF_SIZE && createdGClients < G_CLIENTS) {  
-                    totalTime = operation(lowerGClient, upperGClient);
+                if (gTotal < BUFF_SIZE && gClientsCreated < GENERAL_CLIENTS) {  
+                    totalTime = (int) operation(gClientLower, gClientUpper);
                     sleep(totalTime);
-                    gQueue[gIn] = c.id;
-                    printf("+++ (Productor %d) Se produjo el elemento %d de tipo GENERAL en %.2f segundos\n", id, gQueue[gIn], totalTime);            
+                    generalQueue[gIn] = c.id;
+                    printf("+++ (Agent) Client with ID %d arrived to the GENERAL queue in %d seconds\n", generalQueue[gIn], totalTime);
                     ++gIn;
                     gIn %= BUFF_SIZE;
-                    createdGClients++;
+                    gClientsCreated++;
                     ++gTotal;
                     if (gTotal == 1) {
                         pthread_cond_broadcast(&consume_g);
                         pthread_cond_broadcast(&consume_b);
                     }
-                } else if (createdGClients < G_CLIENTS) {
-                    printf("-------------- Productor %d se durmió para la cola GENERAL ------------\n", id);
+                } else if (gClientsCreated < GENERAL_CLIENTS) {
+                    printf("-------------- Agent has stopped adding new clients to the GENERAL queue ------------\n");
                     pthread_cond_wait(&produce_t, &mutex_g);
-                    printf("-------------- Productor %d se despertó para la cola GENERAL ------------\n", id);
+                    printf("-------------- Agent has resumed adding new clients to the GENERAL queue ------------\n");
                 }
                 pthread_mutex_unlock(&mutex_g);
-        } else if (c.type == B && createdBClients < B_CLIENTS ) { // Business Queue
+        } else if (c.type == BUSINESS && bClientsCreated < BUSINESS_CLIENTS ) {
             pthread_mutex_lock(&mutex_b);
             c.id = ++clientId;
-            if (bTotal < BUFF_SIZE && createdBClients < B_CLIENTS) {  
-                totalTime = operation(lowerBClient, upperBClient);
+            if (bTotal < BUFF_SIZE && bClientsCreated < BUSINESS_CLIENTS) {  
+                totalTime = operation(bClientLower, bClientUpper);
                 sleep(totalTime);
-                bQueue[bIn] = c.id;
-                printf("+++ (Productor %d) Se produjo el elemento %d de tipo BUSINESS en %.2f segundos\n", id, bQueue[bIn], totalTime);            
+                businessQueue[bIn] = c.id;
+                printf("+++ (Agent) Client with ID %d arrived to the BUSINESS queue in %d seconds\n", businessQueue[bIn], totalTime);
                 ++bIn;
                 bIn %= BUFF_SIZE;
-                createdBClients++;
+                bClientsCreated++;
                 ++bTotal;
                 if (bTotal == 1) {
                     pthread_cond_broadcast(&consume_b);
                 }
-            } else if (createdBClients < B_CLIENTS) {
-                printf("-------------- Productor %d se durmió para la cola BUSINESS ------------\n", id);
+            } else if (bClientsCreated < BUSINESS_CLIENTS) {
+                printf("-------------- Agent has stopped adding new clients to the BUSINESS queue ------------\n");
                 pthread_cond_wait(&produce_t, &mutex_b);
-                printf("-------------- Productor %d se despertó para la cola BUSINESS ------------\n", id);
+                printf("-------------- Agent has resumed adding new clients to the BUSINESS queue ------------\n");
             }
-
             pthread_mutex_unlock(&mutex_b);
         }
     }
     pthread_exit(NULL);
 }
 
-void *consumidor(void * arg) {
+void *atm(void *arg) {
     int id = (intptr_t) arg;
-    int cont = 0;
-    printf("(C) Inicia consumidor %d\n", id);
-
-    while ((consumidos_g + consumidos_b) < N) {    
-        if (id <= 5) { // General ATM
+    int counter = 0, totalTime = 0, sleepTime = 3;
+    while (gClientsServed + bClientsServed < N) {    
+        if (id <= 5) {
             pthread_mutex_lock(&mutex_g);
-            if (gTotal > 0 && consumidos_g < G_CLIENTS ) {      
-                printf("--- (GENERAL ATM %d) Se consumió el elemento %d\n", id, gQueue[gOut]);
-                // sleep(1);
-                ++consumidos_g;            
+            if (gTotal > 0 && gClientsServed < GENERAL_CLIENTS ) {
+                printf("---> (GENERAL ATM %d) is serving GENERAL client with ID %d\n", id, generalQueue[gOut]);
+                totalTime = operation(atmLower, atmUpper);
+                sleep(totalTime);      
+                printf("<--- (GENERAL ATM %d) has served GENERAL client with ID %d in %d seconds\n", id, generalQueue[gOut], totalTime);
+                ++gClientsServed;            
                 ++gOut;
                 gOut %= BUFF_SIZE;
                 --gTotal;
-                cont++;
+                counter++;
                 if (gTotal == BUFF_SIZE - 1) {
                     pthread_cond_broadcast(&produce_t);
                 }
-                if(cont == 5) {
-                    cont = 0;
-                    printf("zzz - (GENERAL ATM %d) resting\n", id);
-                    sleep(3);
-                    printf("aaa - (GENERAL ATM %d) awake\n", id);
+                if (counter == 5) {
+                    counter = 0;
+                    printf("zzz - (GENERAL ATM %d) stopped operations for %d seconds\n", id, sleepTime);
+                    sleep(sleepTime);
+                    printf("aaa - (GENERAL ATM %d) has resumed operations\n", id);
                 }
-            } else if (consumidos_g < G_CLIENTS) {
-                // printf("-------------- GENERAL ATM %d se durmió ------------\n", id);
+            } else if (gClientsServed < GENERAL_CLIENTS) {
                 pthread_cond_wait(&consume_g, &mutex_g);
-                // printf("-------------- GENERAL ATM %d se despertó ------------\n", id);
             }
             pthread_mutex_unlock(&mutex_g);
-        } else { // Business ATM
+        } else {
             pthread_mutex_lock(&mutex_b);
-            if (bTotal > 0 && consumidos_b <  B_CLIENTS) {
-                printf("--- (BUSINESS ATM %d) Se consumió el elemento %d\n", id, bQueue[bOut]);
-                // sleep(1);
-                ++consumidos_b;            
+            if (bTotal > 0 && bClientsServed <  BUSINESS_CLIENTS) {
+                printf("---> (BUSINESS ATM %d) is serving BUSINESS client with ID %d\n", id, businessQueue[bOut]);
+                totalTime = operation(atmLower, atmUpper);
+                sleep(totalTime);
+                printf("<--- (BUSINESS ATM %d) has served BUSINES client with ID %d in %d seconds\n", id, businessQueue[bOut], totalTime);
+                ++bClientsServed;            
                 ++bOut;
                 bOut %= BUFF_SIZE;
                 --bTotal;
-                cont++;
+                counter++;
                 if (bTotal == BUFF_SIZE - 1) {
                     pthread_cond_broadcast(&produce_t);
                 }
-                if(cont == 5) {
-                    cont = 0;
-                    printf("zzz - (BUSINESS ATM %d) resting\n", id);
-                    sleep(3);
-                    printf("www - (BUSINESS ATM %d) back on business\n", id);
+                if (counter == 5) {
+                    counter = 0;
+                    printf("zzz - (BUSINESS ATM %d) stopped operations for %d seconds\n", id, sleepTime);
+                    sleep(sleepTime);
+                    printf("aaa - (BUSINESS ATM %d) has resumed operations\n", id);
                 }                
-            } else if (gTotal > 0 && consumidos_g < G_CLIENTS) {
+            } else if (gTotal > 0 && gClientsServed < GENERAL_CLIENTS) {
                 pthread_mutex_lock(&mutex_g);
-                printf("--- (BUSINESS ATM %d) Se consumió el elemento de GENERAL %d\n", id, gQueue[gOut]);
-                // sleep(1);
-                ++consumidos_g;            
+                printf("---> (BUSINESS ATM %d) is serving GENERAL client with ID %d\n", id, generalQueue[gOut]);
+                totalTime = operation(atmLower, atmUpper);
+                sleep(totalTime);
+                printf("<--- (BUSINESS ATM %d) has served GENERAL client with ID %d in %d seconds\n", id, generalQueue[gOut], totalTime);
+                ++gClientsServed;            
                 ++gOut;
                 gOut %= BUFF_SIZE;
                 --gTotal;
-                cont++;
+                counter++;
                 if (gTotal == BUFF_SIZE - 1) {
                     pthread_cond_broadcast(&produce_t);
                 }
-                if(cont == 5) {
-                    cont = 0;
-                    printf("zzz - (BUSINESS ATM %d) resting\n", id);
-                    sleep(3);
-                    printf("aaa - (BUSINESS ATM %d) awake\n", id);
+                if (counter == 5) {
+                    counter = 0;
+                    printf("zzz - (BUSINESS ATM %d) stopped operations for %d seconds\n", id, sleepTime);
+                    sleep(sleepTime);
+                    printf("aaa - (BUSINESS ATM %d) has resumed operations\n", id);
                 }
                 pthread_mutex_unlock(&mutex_g);
-            } else if (consumidos_b < B_CLIENTS) {
-                // printf("-------------- BUSINESS ATM %d se durmió ------------\n", id);
+            } else if (bClientsServed < BUSINESS_CLIENTS) {
                 pthread_cond_wait(&consume_b, &mutex_b);
-                // printf("-------------- BUSINESS ATM %d se despertó ------------\n", id);
             }
             pthread_mutex_unlock(&mutex_b);
         }
     } 
     pthread_exit(NULL);
+}
+
+int main(int argc, const char *argv[]) {    
+    srand((int) time(NULL));
+    int index = 0;
+    int nThreads = ATMS + 1;
+    pthread_t * bank = (pthread_t *) malloc (sizeof(pthread_t) * nThreads);
+    pthread_t * aux = bank;
+
+    printf("BANK IS OPEN\n");
+    pthread_create(aux, NULL, agent, (void *) index);
+
+    aux += 1;
+    index = 0;
+
+    for (; aux < bank + nThreads; ++aux) {
+        ++index;
+        pthread_create(aux, NULL, atm, (void *) index);
+    }
+
+    for (aux = bank; aux < bank + nThreads; ++aux) {
+        pthread_join(*aux, NULL);
+    }
+
+    free(bank);
+    printf("\nBANK CLOSED\n");
+    return 0;
 }
