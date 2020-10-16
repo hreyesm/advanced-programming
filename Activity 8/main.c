@@ -4,10 +4,10 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-#define BUFF_SIZE 3
+#define BUFF_SIZE 5
 
-#define N 5
-#define G_CLIENTS 4
+#define N 6
+#define G_CLIENTS 5
 #define B_CLIENTS 1
 
 #define G 0
@@ -90,7 +90,6 @@ void *productor(void *arg) {
         type = rand() % 2;
         c.type = type;
         if (c.type == G && createdGClients < G_CLIENTS) { // General Queue
-            // if (bTotal != 0) {
                 pthread_mutex_lock(&mutex_g);
                 c.id = ++clientId;
                 if (gTotal < BUFF_SIZE && createdGClients < G_CLIENTS) {  
@@ -104,6 +103,7 @@ void *productor(void *arg) {
                     ++gTotal;
                     if (gTotal == 1) {
                         pthread_cond_broadcast(&consume_g);
+                        pthread_cond_broadcast(&consume_b);
                     }
                 } else if (createdGClients < G_CLIENTS) {
                     printf("-------------- Productor %d se durmió para la cola GENERAL ------------\n", id);
@@ -111,28 +111,6 @@ void *productor(void *arg) {
                     printf("-------------- Productor %d se despertó para la cola GENERAL ------------\n", id);
                 }
                 pthread_mutex_unlock(&mutex_g);
-            // } else {
-            //     pthread_mutex_lock(&mutex_b);
-            //     c.id = ++clientId;
-            //     if (bTotal < BUFF_SIZE && createdGClients < G_CLIENTS) {
-            //         totalTime = operation(lowerGClient, upperGClient);
-            //         sleep(totalTime);
-            //         bQueue[bIn] = c.id;
-            //         printf("+++ (Productor %d) Se produjo el elemento %d de tipo GENERAL en BUSINESS ATM en %.2f segundos\n", id, bQueue[bIn], totalTime);            
-            //         ++bIn;
-            //         bIn %= BUFF_SIZE;
-            //         createdGClients++;
-            //         ++bTotal;
-            //         if (bTotal == 1) {
-            //             pthread_cond_broadcast(&consume_b);
-            //         }
-            //     } else if (createdGClients < G_CLIENTS) {
-            //         printf("-------------- Productor %d se durmió para la cola BUSINESS ------------\n", id);
-            //         pthread_cond_wait(&produce_t, &mutex_b);
-            //         printf("-------------- Productor %d se despertó para la cola BUSINESS ------------\n", id);
-            //     }
-            //     pthread_mutex_unlock(&mutex_b);
-            // }
         } else if (c.type == B && createdBClients < B_CLIENTS ) { // Business Queue
             pthread_mutex_lock(&mutex_b);
             c.id = ++clientId;
@@ -206,10 +184,29 @@ void *consumidor(void * arg) {
                 }
                 if(cont == 5) {
                     cont = 0;
-                    printf("zzz - (GENERAL ATM %d) resting\n", id);
+                    printf("zzz - (BUSINESS ATM %d) resting\n", id);
                     sleep(3);
-                    printf("www - (GENERAL ATM %d) back on business\n", id);
+                    printf("www - (BUSINESS ATM %d) back on business\n", id);
                 }                
+            } else if (gTotal > 0 && consumidos_g < G_CLIENTS) {
+                pthread_mutex_lock(&mutex_g);
+                printf("--- (BUSINESS ATM %d) Se consumió el elemento de GENERAL %d\n", id, gQueue[gOut]);
+                // sleep(1);
+                ++consumidos_g;            
+                ++gOut;
+                gOut %= BUFF_SIZE;
+                --gTotal;
+                cont++;
+                if (gTotal == BUFF_SIZE - 1) {
+                    pthread_cond_broadcast(&produce_t);
+                }
+                if(cont == 5) {
+                    cont = 0;
+                    printf("zzz - (BUSINESS ATM %d) resting\n", id);
+                    sleep(3);
+                    printf("aaa - (BUSINESS ATM %d) awake\n", id);
+                }
+                pthread_mutex_unlock(&mutex_g);
             } else if (consumidos_b < B_CLIENTS) {
                 // printf("-------------- BUSINESS ATM %d se durmió ------------\n", id);
                 pthread_cond_wait(&consume_b, &mutex_b);
