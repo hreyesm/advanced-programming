@@ -3,12 +3,14 @@
 #include <time.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <semaphore.h>
 
-#define PEOPLE 10
+#define PEOPLE 100
 
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t mutex_w = PTHREAD_COND_INITIALIZER;
 pthread_cond_t mutex_m = PTHREAD_COND_INITIALIZER;
+sem_t womenSemaphoreIn, womenSemaphoreOut, menSemaphoreIn, menSemaphoreOut;
 
 int women = 0;
 int men = 0;
@@ -27,19 +29,23 @@ int main(int argc, const char *argv[]) {
     int gender = 0;
     int womenIndex = 0;
     int menIndex = 0;
+    sem_init(&womenSemaphoreIn, 0, 1);
+    sem_init(&womenSemaphoreOut, 0, 0);
+    sem_init(&menSemaphoreIn, 0, 1);
+    sem_init(&menSemaphoreOut, 0, 0);
     if (peopleInBathroom == 0) {
         printf("Bathroom is empty\n");
     }
     while (peopleCreated < PEOPLE * 2) {
         gender = rand() % 2;
         if (gender == 0) {
-            pthread_create(people + peopleCreated, NULL, womanEnters, (void *) ++womenIndex);
+            pthread_create(people + peopleCreated, NULL, womanEnters, NULL);
             ++peopleCreated;
-            pthread_create(people + peopleCreated, NULL, womanLeaves, (void *) womenIndex);
+            pthread_create(people + peopleCreated, NULL, womanLeaves, NULL);
         } else {
-            pthread_create(people + peopleCreated, NULL, manEnters, (void *) ++menIndex);
+            pthread_create(people + peopleCreated, NULL, manEnters, NULL);
             ++peopleCreated;
-            pthread_create(people + peopleCreated, NULL, manLeaves, (void *) menIndex);
+            pthread_create(people + peopleCreated, NULL, manLeaves, NULL);
         }
         ++peopleCreated;
     }
@@ -47,77 +53,73 @@ int main(int argc, const char *argv[]) {
         pthread_join(*aux, NULL);
     }
     free(people);
+    sem_destroy(&womenSemaphoreIn);
+    sem_destroy(&womenSemaphoreOut);
+    sem_destroy(&menSemaphoreIn);
+    sem_destroy(&menSemaphoreOut);
     return 0;
 }
 
 void *womanEnters(void *id) {
-    int index = (intptr_t) id;
-    pthread_mutex_lock(&mutex);
-    printf("(W) WOMAN %d has arrived to the queue (%d waiting)\n", index, ++womenInQueue);
+    sem_wait(&womenSemaphoreIn);
+    printf("(W) WOMAN has arrived to the queue (%d waiting)\n", ++womenInQueue);
     while (womenInQueue > 0) {
         if (peopleInBathroom == 0 || women > 0) {
-            printf("(W) --> WOMAN %d has entered the bathroom (%d waiting)\n", index, --womenInQueue);
+            printf("(W) --> WOMAN has entered the bathroom (%d waiting)\n", --womenInQueue);
             ++women;
             ++peopleInBathroom;
-            pthread_mutex_unlock(&mutex);
+            sem_post(&womenSemaphoreOut);
             usleep(300);
         } else {
-            printf("(W) WOMAN % d cannot enter the bathroom\n", index);
-            pthread_cond_wait(&mutex_w, &mutex);
-            printf("(W) WOMAN %d can enter the bathroom\n", index);
+            printf("(W) WOMAN cannot enter the bathroom\n");
+            sem_post(&menSemaphoreIn);
+            sem_wait(&womenSemaphoreIn);
+            printf("(W) WOMAN can enter the bathroom\n");
         }
     }
-    pthread_exit(NULL);
 }
 
 void *manEnters(void *id) {
-    int index = (intptr_t) id;
-    pthread_mutex_lock(&mutex);
-    printf("(M) MAN %d has arrived to the queue (%d waiting)\n", index, ++menInQueue);
+    sem_wait(&menSemaphoreIn);
+    printf("(M) MAN has arrived to the queue (%d waiting)\n", ++menInQueue);
     while (menInQueue > 0) {
         if (peopleInBathroom == 0 || men > 0) {
-            printf("(M) --> MAN %d has entered the bathroom (%d waiting)\n", index, --menInQueue);
+            printf("(M) --> MAN has entered the bathroom (%d waiting)\n", --menInQueue);
             ++men;
             ++peopleInBathroom;
-            pthread_mutex_unlock(&mutex);
+            sem_post(&menSemaphoreOut);
             usleep(300);
         } else {
-            printf("(M) MAN %d cannot enter the bathroom\n", index);
-            pthread_cond_wait(&mutex_m, &mutex);
-            printf("(M) MAN %d can enter the bathroom\n", index);
+            printf("(M) MAN cannot enter the bathroom\n");
+            sem_post(&womenSemaphoreIn);
+            sem_wait(&menSemaphoreIn);
+            printf("(M) MAN can enter the bathroom\n");
         }
     }
-    pthread_exit(NULL);
 }
 
 void *womanLeaves(void *id) {
-    int index = (intptr_t) id;
-    pthread_mutex_lock(&mutex);
+    sem_wait(&womenSemaphoreOut);
     while (women > 0) {
-        printf("(W) WOMAN %d has left the bathroom -->\n", index);
+        printf("(W) WOMAN has left the bathroom -->\n");
         --women;
         --peopleInBathroom;
         if (peopleInBathroom == 0) {
             printf("Bathroom is empty\n");
-            pthread_cond_broadcast(&mutex_m);
+            sem_post(&menSemaphoreIn);
         }
     }
-    pthread_mutex_unlock(&mutex);
-    pthread_exit(NULL);
 }
 
 void *manLeaves(void *id) {
-    int index = (intptr_t) id;
-    pthread_mutex_lock(&mutex);
+    sem_wait(&menSemaphoreOut);
     while (men > 0) {
-        printf("(M) MAN %d has left the bathroom -->\n", index);
+        printf("(M) MAN has left the bathroom -->\n");
         --men;
         --peopleInBathroom;
         if (peopleInBathroom == 0) {
             printf("Bathroom is empty\n");
-            pthread_cond_broadcast(&mutex_w);
+            sem_post(&womenSemaphoreIn);
         }
     }
-    pthread_mutex_unlock(&mutex);
-    pthread_exit(NULL);
 }
