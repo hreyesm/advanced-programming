@@ -25,8 +25,7 @@ void *manLeaves(void *);
 int main(int argc, const char *argv[]) {
     srand((int) time(NULL));  
 
-    pthread_t *threads = (pthread_t *) malloc (sizeof(pthread_t) * 4);
-    pthread_t *aux = threads;
+    pthread_t threads[4];
     
     sem_init(&womenSemaphore, 0, 0);
     sem_init(&menSemaphore, 0, 0);
@@ -34,15 +33,13 @@ int main(int argc, const char *argv[]) {
     if (bathroom == EMPTY)
         printf("Bathroom is empty\n");
 
-    pthread_create(aux, NULL, &womanEnters, NULL);
-    pthread_create(++aux, NULL, &womanLeaves, NULL);
-    pthread_create(++aux, NULL, &manEnters, NULL);
-    pthread_create(++aux, NULL, &manLeaves, NULL);
+    pthread_create(&threads[0], NULL, &womanEnters, NULL);
+    pthread_create(&threads[1], NULL, &womanLeaves, NULL);
+    pthread_create(&threads[2], NULL, &manEnters, NULL);
+    pthread_create(&threads[3], NULL, &manLeaves, NULL);
     
-    for (aux = threads; aux < threads + 4; ++aux)
-        pthread_join(*aux, NULL);
-    
-    free(threads);
+    for (int i = 0; i < 4; i++)
+        pthread_join(threads[i], NULL);
 
     sem_destroy(&womenSemaphore);
     sem_destroy(&menSemaphore);
@@ -53,7 +50,7 @@ int main(int argc, const char *argv[]) {
 void *womanEnters(void *arg) {
     int womenInQueue = 0;
     while (womenProduced + menProduced < TOTAL) {
-        usleep(rand() % 500);
+        // usleep(rand() % 500);
         printf("(W) WOMAN has arrived to the queue (%d waiting)\n", ++womenInQueue);
         ++womenProduced;
         pthread_mutex_lock(&mutex);
@@ -75,7 +72,7 @@ void *womanEnters(void *arg) {
 void *manEnters(void *arg) {
     int menInQueue = 0;
     while (womenProduced + menProduced < TOTAL) {
-        usleep(rand() % 500);
+        // usleep(rand() % 500);
         printf("(M) MAN has arrived to the queue (%d waiting)\n", ++menInQueue);
         ++menProduced;
         pthread_mutex_lock(&mutex);
@@ -102,7 +99,7 @@ void *womanLeaves(void *arg) {
         printf("(W) WOMAN has left the bathroom (%d inside) -->\n", womenInBathroom);
         ++womenConsumed;
         if (!womenInBathroom) {
-            usleep(rand() % 500);
+            // usleep(rand() % 500);
             pthread_mutex_lock(&mutex);
             bathroom = EMPTY;
             printf("Bathroom is empty\n");
@@ -120,7 +117,7 @@ void *manLeaves(void *arg) {
         printf("(W) MAN has left the bathroom (%d inside) -->\n", menInBathroom);
         ++menConsumed;
         if (!menInBathroom) {
-            usleep(rand() % 500);
+            // usleep(rand() % 500);
             pthread_mutex_lock(&mutex);
             bathroom = EMPTY;
             printf("Bathroom is empty\n");
