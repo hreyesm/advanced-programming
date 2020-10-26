@@ -17,6 +17,7 @@
 #include <time.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <semaphore.h>
 
 #define CHAIRS 4
 #define DWARFS 7
@@ -27,71 +28,78 @@ int in = 0;
 int out = 0;
 
 int occupiedChairs = 0;
+int dwarfsServed = 0;
 
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
-pthread_cond_t produce_t = PTHREAD_COND_INITIALIZER;
-pthread_cond_t consume_t = PTHREAD_COND_INITIALIZER;
+sem_t swSemaphore, dSemaphore;
 
 void *dwarf(void *);
 void *snowWhite(void *);
 
-int main(int argc, const char * argv[]) {
+int main(int argc, const char *argv[]) {
     srand((unsigned int) time(NULL));
-    pthread_t d, s;
-    
-    pthread_create(&d, NULL, dwarf, NULL);
-    pthread_create(&s, NULL, snowWhite, NULL);
-    pthread_join(d, NULL);  
-    pthread_join(s, NULL);
-    
-    return 0;
+    sem_init(&swSemaphore, 0, 0);
+    sem_init(&dSemaphore, 0, 0);
+    int dwarfId = 0;     
+    pthread_t sw;
+    pthread_t *d = (pthread_t *) malloc(sizeof(pthread_t) * DWARFS);
+    pthread_t *aux;
+    pthread_create(&sw, NULL, snowWhite, NULL);
+    for (aux = d; aux < d + DWARFS; ++aux) {
+        ++dwarfId;
+        pthread_create(aux, NULL, dwarf, (void *) dwarfId);
+    }
+    pthread_join(sw, NULL);
+    for (aux = d; aux < d + DWARFS; ++aux) {
+        pthread_join(*aux, NULL);  
+    }
+    sem_destroy(&swSemaphore);
+    sem_destroy(&dSemaphore);
+    free(d);
+    pthread_exit(NULL);
 }
 
 void *dwarf(void *arg) {
-    int i = 0;
-    while (i < DWARFS) {
-        usleep(rand() % 500);
-        pthread_mutex_lock(&mutex);
+    int id = (intptr_t) arg;
+    while (dwarfsServed < DWARFS) {
+        usleep(rand() % 300);
         if (occupiedChairs < CHAIRS) {
-            table[in] = i;
-            printf("DWARF %d has sat at the table\n", table[in]);
-            ++i;
+            pthread_mutex_lock(&mutex);
+            ++occupiedChairs;
+            table[in] = id;
+            printf("DWARF %d has sat at the table (%d occupied chairs)\n", table[in], occupiedChairs);
             ++in;
             in %= CHAIRS;
-            ++occupiedChairs;
-            if (occupiedChairs == 1) {
-                pthread_cond_signal(&consume_t);
-            }
+            sem_post(&swSemaphore);  // le indica a sw que ya se sentó
+            pthread_mutex_unlock(&mutex);
+            sem_wait(&dSemaphore);   // sw le indica que ya puede comer
+            printf("DWARF %d has started eating\n", id);
+            usleep(rand() % 300);
+            // pthread_mutex_lock(&mutex);
+            --occupiedChairs;
+            ++dwarfsServed;
+            // pthread_mutex_unlock(&mutex);
+            printf("DWARF %d has finished eating and left the table (%d occupied chairs) \n", id, occupiedChairs);
+            pthread_exit(NULL);
         } else {
-            printf("DWARF %d cannot sit\n", i);
-            pthread_cond_wait(&produce_t, &mutex);
-            printf("DWARF %d can sit\n", i);
+             printf("DWARF %d cannot sit at the table (%d occupied chairs)\n", id, occupiedChairs);
         }
-        pthread_mutex_unlock(&mutex);
     }
-    pthread_exit(NULL);
 }
 
 void *snowWhite(void *arg) {
     int i = 0;
+    int value;
     while (i < DWARFS) {
-        usleep(rand() % 500);
-        pthread_mutex_lock(&mutex);
-        if (occupiedChairs > 0) {
-            printf("SNOW WHITE has served DWARF %d\n", table[out]);
-            ++i;
-            ++out;
-            out %= CHAIRS;
-            --occupiedChairs;
-            if (occupiedChairs == CHAIRS - 1) {
-                pthread_cond_signal(&produce_t);
-            }
-        } else {
+        sem_wait(&swSemaphore);
+        printf("SNOW WHITE has served DWARF %d\n", table[out]);
+        ++i;
+        ++out;
+        out %= CHAIRS;
+        sem_post(&dSemaphore); // le indica al dwarf que ya puede comer
+        if (occupiedChairs == 0) {
             printf("SNOW WHITE has gone for a walk as there are no more dwarfs to serve\n");
-            pthread_cond_wait(&consume_t, &mutex);
-            printf("SNOW WHITE is back as there is a dwarf waiting to be served\n");
         }
-        pthread_mutex_unlock(&mutex);
     }
     pthread_exit(NULL);
 }
