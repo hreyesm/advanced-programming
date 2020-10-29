@@ -15,9 +15,9 @@ Para poder resolverlo dados los anteriormente mencioandos problemas de concurren
 
 ### Mutex
 Dado que la región crítica está bastante bien definida, solo es necesario la implementación de un solo mutex para proteger cuando:
-    * Un enano a la vez escriba su ID sobre el arreglo _table_ 
-    * Se modifique la variable global _dwarfsToServe_. 
-        * Esta última variable aumentará en el hilo de los enanos y disminuirá en cuanto Blancanieves lo atienda.
+ * Un enano a la vez escriba su ID sobre el arreglo _table_ 
+ * Se modifique la variable global _dwarfsToServe_. 
+     * Esta última variable aumentará en el hilo de los enanos y disminuirá en cuanto Blancanieves lo atienda.
 ### Semáforos
 Se decidió utilizar semáforos porque la implementación de estos es bastante más sencilla y comprensible que la de las variables de condición. 
 * _turn_: Semáforo binario que se utilizará para indicar a Blancanieves que hay un enano esperando a ser atendido. 
