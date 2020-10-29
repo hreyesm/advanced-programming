@@ -8,7 +8,7 @@
 */
 
 #include <stdio.h>
-#include <pthread.h>.
+#include <pthread.h>
 #include <time.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -22,7 +22,6 @@ int table[CHAIRS];
 int in = 0;
 int out = 0;
 
-int dwarfsArrived = 0;
 int dwarfsToServe = 0;
 
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -57,13 +56,12 @@ int main(int argc, const char *argv[]) {
 void *dwarf(void *arg) {
     int id = (intptr_t) arg;
     int emptyChairs;
-    while (dwarfsArrived < DWARFS) {
+    while (1) {
         usleep(rand() % 300);
         pthread_mutex_lock(&mutex);
         sem_wait(&chairs);
         sem_getvalue(&chairs, &emptyChairs);
         printf("DWARF %d has sat at the table (%d empty chairs)\n", id, emptyChairs);
-        ++dwarfsArrived;
         table[in] = id;
         ++in;
         in %= CHAIRS;
@@ -76,16 +74,14 @@ void *dwarf(void *arg) {
         sem_post(&chairs);
         sem_getvalue(&chairs, &emptyChairs);
         printf("DWARF %d has finished eating and left the table (%d empty chairs)\n", id, emptyChairs);
-        pthread_exit(NULL);
     }
+    pthread_exit(NULL);
 }
 
 void *snowWhite(void *arg) {
-    int dwarfsArrived = 0;
-    while (dwarfsArrived < DWARFS) {
+    while (1) {
         sem_wait(&turn);
         printf("SNOW WHITE has served DWARF %d\n", table[out]);
-        ++dwarfsArrived;
         dwarfsToServe--;
         ++out;
         out %= CHAIRS;
