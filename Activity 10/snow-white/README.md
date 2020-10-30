@@ -9,7 +9,7 @@ Se busca modelar un sistema basado en hilos que simule dos tipos de agentes, cad
 * <strong>Blancanieves (1 hilo):</strong> Sirve comida a todos los enanos que se sientan en la mesa, la cual cuenta con 4 sillas. Cuando termina de servir a todos los enanos sentados en un momento dado, sale a caminar. Vuelve de caminar cuando un nuevo enano se sienta en la mesa.
 * <strong>Enano (7 hilos, uno por cada enano):</strong> Al llegar a la mesa, verifica si hay una silla disponible para sentarse. Si es así, se sienta y pide a Blancanieves que le sirva la comida. Una vez que termina de comer, deja su silla.
 ### Análisis de los problemas de concurrencia
-La región crítica del sistema descrito comprende las 4 sillas. Dado que hay 7 hilos que van a intentar acceder a esta región crítica, es necesario proteger los siguientes recursos compartidos:
+La región crítica del sistema descrito comprende el proceso de asignación de sillas. Dado que hay 7 hilos que van a intentar acceder a esta región crítica, es necesario proteger los siguientes recursos compartidos:
 * <strong>_table[CHAIRS]_:</strong> Se utiliza para dar a conocer el ID de un hilo de tipo enano a Blancanieves.
 * <strong>_dwarfsToServe_:</strong> Indica el número de enanos que Blancanieves tiene pendientes para servir en un momento dado.
 
