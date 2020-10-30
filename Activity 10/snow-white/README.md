@@ -10,12 +10,12 @@ Se busca modelar un sistema basado en hilos que simule dos tipos de agentes, cad
 * <strong>Enano (7 hilos, uno por cada enano):</strong> Al llegar a la mesa, verifica si hay una silla disponible para sentarse. Si es así, se sienta y pide a Blancanieves que le sirva la comida. Una vez que termina de comer, deja su silla.
 ### Análisis de los problemas de concurrencia
 La región crítica del sistema descrito comprende las 4 sillas. Dado que hay 7 hilos que van a intentar acceder a esta región crítica, es necesario proteger los siguientes recursos:
-* <strong>_table[CHAIRS]_:</strong> Se utiliza para enviar el ID de un hilo de tipo enano al hilo de tipo Blancanieves.
+* <strong>_table[CHAIRS]_:</strong> Se utiliza para dar a conocer el ID de un hilo de tipo enano a Blancanieves.
 * <strong>_dwarfsToServe_:</strong> Indica el número de enanos que Blancanieves tiene pendientes para servir en un momento dado.
 
-Cabe mencionar que el hilo correspondiente a Blancanieves, al ser único durante la ejecución, no presenta problemas de concurrencia notables.
+Por su parte, cabe mencionar que el hilo correspondiente a Blancanieves, al ser único durante la ejecución, no presenta problemas de concurrencia notables.
 ## Solución
-Para la implementación del sistema, se utilizó 1 mutex y 2 semáforos. A continuación se explicará el uso que se le dio a cada uno de ellos en el contexto del sistema.
+Para asegurar la concurrencia dentro del sistema, se optó por utilizar 1 mutex y 2 semáforos. A continuación se explica el uso que se le dio a cada uno de ellos.
 
 ### Mutex
 Dado que la región crítica está bastante bien definida, solo es necesario la implementación de un solo mutex para proteger cuando:
