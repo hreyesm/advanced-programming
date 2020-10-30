@@ -18,7 +18,7 @@ Por su parte, cabe mencionar que el hilo correspondiente a Blancanieves, al ser 
 Para asegurar la concurrencia dentro del sistema, se optó por utilizar 1 mutex y 2 semáforos. A continuación se explica el uso que se le dio a cada uno de ellos.
 
 ### Mutex
-Debido a que la región crítica está bien definida, los recursos compartidos solo deben protegerse cuando se presenta alguno de los siguientes casos:
+Debido a que la región crítica está bien definida, los recursos compartidos sólo deben protegerse mediante un mutex cuando alguno de los siguientes casos se presenta:
  * Un enano escribe su ID en una posición del arreglo _table_, que equivale a sentarse en una silla disponible.
  * La variable _dwarfsToServe_ es modificada. Ésta aumentará cuando un enano se sienta y disminuirá en cuanto Blancanieves le sirva la comida.
 ### Semáforos
