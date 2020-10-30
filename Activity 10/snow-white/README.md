@@ -3,15 +3,19 @@
 * [Daniela Vignau (A01021698)](https://github.com/dvigleo)
 * [Héctor Reyes (A01339607)](https://github.com/hreyesm)
 
-## Análisis sobre los problemas de concurrencia
-La región crítica del problema descrito es la mesa con las 4 sillas
-* Al ser 7 hilos los que van a intentar acceder a dicha región crítica, se deben proteger las variables que:
-    * se utilizan para mandar el ID del enano a Blancanieves (_table[CHAIRS]_)
-    * indican el número de enanos que Blancanieves tiene esperando por comer (_dwarfsToServe_)
-* Por otra parte, Blancanieves, al ser un único hilo, no existen problemas de concurrencia notables.
+## Descripción y análisis
+### Descripción del sistema
+Se busca modelar un sistema basado en hilos que simule dos tipos de agentes, cada uno con su respectivo comportamiento:
+* <strong>Blancanieves (1 hilo):</strong> Sirve comida a todos los enanos que se sientan en la mesa con 4 sillas. Cuando termina de servir a todos los enanos sentados en un momento dado, sale a caminar. Vuelve de caminar cuando un nuevo enano se sienta en la mesa.
+* <strong>Enano (7 hilos, uno por cada enano):</strong> Al llegar a la mesa, verifica si hay una silla disponible para sentarse. Si es así, se sienta y pide a Blancanieves que le sirva la comida. Una vez que termina de comer, deja su silla.
+### Análisis de los problemas de concurrencia
+La región crítica del sistema descrito comprende las 4 sillas. Dado que hay 7 hilos que van a intentar acceder a esta región crítica, es necesario proteger los siguientes recursos:
+* <strong>_table[CHAIRS]_:</strong> Se utiliza para enviar el ID de un hilo de tipo enano al hilo de tipo Blancanieves.
+* <strong>_dwarfsToServe_:</strong> Indica el número de enanos que Blancanieves tiene pendientes para servir en un momento dado.
 
-## Solución seleccionada
-Para poder resolverlo dados los anteriormente mencioandos problemas de concurrencia, se propone utilizar 1 mutex y 2 semáforos. A continuación se explicará el uso que se le dará a cada uno de ellos dentro del programa.
+Cabe mencionar que el hilo correspondiente a Blancanieves, al ser único durante la ejecución, no presenta problemas de concurrencia notables.
+## Solución
+Para la implementación del sistema, se utilizó 1 mutex y 2 semáforos. A continuación se explicará el uso que se le dio a cada uno de ellos en el contexto del sistema.
 
 ### Mutex
 Dado que la región crítica está bastante bien definida, solo es necesario la implementación de un solo mutex para proteger cuando:
