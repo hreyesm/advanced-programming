@@ -14,9 +14,10 @@
 #include <unistd.h>
 
 #define SECTIONS 3
-#define SECTION_WEIGHT 2
-#define ROBOTS 3
+#define SECTION_WEIGHT 3
+#define ROBOTS 5
 #define ROBOT_WEIGHT 1
+#define PRODUCT_WEIGHT 1
 
 int mall[SECTIONS];
 
@@ -44,18 +45,36 @@ int main(int argc, const char *argv[]) {
 void *robot(void *arg) {
     int id = (intptr_t) arg;
     int i = 0;
+    int robotHasToBuy = 0;
+    int rangeProductWeight = 0;
+    int productWeight = 0;
+    int robotWeight = ROBOT_WEIGHT;
     usleep(rand() % 300);
     while (i < SECTIONS) {
         pthread_mutex_lock(&mutex_in);
-        if (mall[i] + ROBOT_WEIGHT <= SECTION_WEIGHT) {
-            mall[i] += ROBOT_WEIGHT;
-            printf("--> ROBOT %d has entered SECTION %d (accumulated weight = %d)\n", id, i, mall[i]);
-            pthread_mutex_unlock(&mutex_in);
+        if (mall[i] + robotWeight <= SECTION_WEIGHT) {
+            robotHasToBuy = rand() % 2;
+            if (robotHasToBuy) {
+                mall[i] += robotWeight;
+                printf("--> ROBOT %d (weight = %d) has entered SECTION %d (weight = %d/%d)\n", id, robotWeight, i, mall[i], SECTION_WEIGHT);
+                if (mall[i] + PRODUCT_WEIGHT <= SECTION_WEIGHT) {
+                    robotWeight += PRODUCT_WEIGHT;
+                    mall[i] += PRODUCT_WEIGHT;
+                    printf("ROBOT %d (weight = %d) has bought a product in SECTION %d (weight = %d/%d)\n", id, robotWeight, i, mall[i], SECTION_WEIGHT);
+                    pthread_mutex_unlock(&mutex_in);
+                } else {
+                    printf("ROBOT %d cannot buy more products (MAX WEIGHT REACHED)\n", id);
+                }
+            } else {
+                printf("ROBOT %d does not have to buy anything in SECTION %d\n", id, i);
+            }
             usleep(rand() % 300);
-            pthread_mutex_lock(&mutex_out);
-            mall[i] -= ROBOT_WEIGHT;
-            printf("<-- ROBOT %d has left SECTION %d (accumulated weight = %d)\n", id, i, mall[i]);
-            pthread_mutex_unlock(&mutex_out);
+            if (robotHasToBuy) {
+                pthread_mutex_lock(&mutex_out);
+                mall[i] -= robotWeight ;
+                printf("<-- ROBOT %d (weight = %d) has left SECTION %d (weight = %d/%d)\n", id, robotWeight, i, mall[i], SECTION_WEIGHT);
+                pthread_mutex_unlock(&mutex_out);
+            }
             i++;
         } 
         pthread_mutex_unlock(&mutex_in);
