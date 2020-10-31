@@ -14,11 +14,10 @@
 #include <unistd.h>
 
 #define SECTIONS 3
-#define SECTION_WEIGHT 2
-#define ROBOTS 2
+#define SECTION_WEIGHT 3
+#define ROBOTS 5
 #define ROBOT_WEIGHT 1
-#define NO 0
-#define YES 1
+#define PRODUCT_WEIGHT 1
 
 int mall[SECTIONS];
 
@@ -49,31 +48,33 @@ void *robot(void *arg) {
     int robotHasToBuy = 0;
     int rangeProductWeight = 0;
     int productWeight = 0;
-    int robotWeight = ROBOT_WEIGHT; // necessary in case the robot doesnt have to buy in the section
+    int robotWeight = ROBOT_WEIGHT;
     usleep(rand() % 300);
     while (i < SECTIONS) {
         pthread_mutex_lock(&mutex_in);
-        if (mall[i] + ROBOT_WEIGHT <= SECTION_WEIGHT) {
-            mall[i] += ROBOT_WEIGHT;
-            printf("--> ROBOT %d has entered SECTION %d (accumulated weight = %d)\n", id, i, mall[i]);
+        if (mall[i] + robotWeight <= SECTION_WEIGHT) {
             robotHasToBuy = rand() % 2;
-            if (robotHasToBuy == YES) {
-                rangeProductWeight = SECTION_WEIGHT - mall[i]; // attempt to find the range of avaiable numbers where the product weight is and still be within the max section weight
-                productWeight = rand() % SECTION_WEIGHT;
-                printf("Product Weight = %d\n", productWeight);
-                robotWeight += productWeight;
-                mall[i] += robotWeight - ROBOT_WEIGHT; // we don't want to add twice the robot weight
-                printf("--> ROBOT %d has bought a product of weight %d (accumulated weight = %d)\n", id, productWeight, mall[i]);
+            if (robotHasToBuy) {
+                mall[i] += robotWeight;
+                printf("--> ROBOT %d (weight = %d) has entered SECTION %d (weight = %d/%d)\n", id, robotWeight, i, mall[i], SECTION_WEIGHT);
+                if (mall[i] + PRODUCT_WEIGHT <= SECTION_WEIGHT) {
+                    robotWeight += PRODUCT_WEIGHT;
+                    mall[i] += PRODUCT_WEIGHT;
+                    printf("ROBOT %d (weight = %d) has bought a product in SECTION %d (weight = %d/%d)\n", id, robotWeight, i, mall[i], SECTION_WEIGHT);
+                    pthread_mutex_unlock(&mutex_in);
+                } else {
+                    printf("ROBOT %d cannot buy more products (MAX WEIGHT REACHED)\n", id);
+                }
             } else {
-                printf("ROBOT %d does not have tu purchase anything in SECTION %d\n", id, i);
+                printf("ROBOT %d does not have to buy anything in SECTION %d\n", id, i);
             }
-            pthread_mutex_unlock(&mutex_in);
             usleep(rand() % 300);
-            pthread_mutex_lock(&mutex_out);
-            mall[i] -= robotWeight; // reset the section weight;
-            robotWeight = ROBOT_WEIGHT; // reset the robot weight;
-            printf("<-- ROBOT %d has left SECTION %d (accumulated weight = %d)\n", id, i, mall[i]);
-            pthread_mutex_unlock(&mutex_out);
+            if (robotHasToBuy) {
+                pthread_mutex_lock(&mutex_out);
+                mall[i] -= robotWeight ;
+                printf("<-- ROBOT %d (weight = %d) has left SECTION %d (weight = %d/%d)\n", id, robotWeight, i, mall[i], SECTION_WEIGHT);
+                pthread_mutex_unlock(&mutex_out);
+            }
             i++;
         } 
         pthread_mutex_unlock(&mutex_in);
